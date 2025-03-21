@@ -5,7 +5,7 @@ import pandas as pd
 from PyQt6.QtWidgets import (QMainWindow, QHBoxLayout, QVBoxLayout, QLabel,
                              QSlider, QWidget, QPushButton, QFileDialog)
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QImage, QPixmap  # Ensure QImage is imported
+from PyQt6.QtGui import QImage, QPixmap
 from open_gl_widget import OpenGLWidget
 from label_dialog import LabelDialog
 from utils import load_keypoint_data
@@ -63,9 +63,10 @@ class PoseLabelingTool(QMainWindow):
         self.show()
 
     def open_files(self):
-        npy_file, _ = QFileDialog.getOpenFileName(self, "Select Keypoints File", "", "NPY Files (*.npy);;All Files (*)")
-        if npy_file:
-            self.keypoints = load_keypoint_data(npy_file)
+        file_filter = "Keypoints Files (*.npy *.csv);;All Files (*)"
+        keypoints_file, _ = QFileDialog.getOpenFileName(self, "Select Keypoints File", "", file_filter)
+        if keypoints_file:
+            self.keypoints = load_keypoint_data(keypoints_file)
             self.slider.setMaximum(self.keypoints.shape[0] - 1)
             self.openGLWidget.keypoints = self.keypoints
 
