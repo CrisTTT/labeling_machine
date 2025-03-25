@@ -3,11 +3,10 @@ import numpy as np
 import cv2
 import pandas as pd
 from PyQt6.QtWidgets import (QMainWindow, QHBoxLayout, QVBoxLayout, QLabel,
-                             QSlider, QWidget, QPushButton, QFileDialog)
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QImage, QPixmap
+                             QSlider, QWidget, QPushButton, QFileDialog, QLineEdit, QFormLayout, QCheckBox, QToolButton)
+from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtGui import QImage, QPixmap, QIcon
 from open_gl_widget import OpenGLWidget
-from label_dialog import LabelDialog
 from utils import load_keypoint_data
 
 class PoseLabelingTool(QMainWindow):
@@ -58,6 +57,10 @@ class PoseLabelingTool(QMainWindow):
         self.add_label_button.clicked.connect(self.add_label)
         pose_layout.addWidget(self.add_label_button)
 
+        # Labels layout
+        self.labels_layout = QVBoxLayout()
+        pose_layout.addLayout(self.labels_layout)
+
         main_layout.addLayout(pose_layout)
 
         self.show()
@@ -98,10 +101,68 @@ class PoseLabelingTool(QMainWindow):
                 self.video_label.setPixmap(QPixmap.fromImage(image))
 
     def add_label(self):
-        dialog = LabelDialog(self)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            label_name, label_value, start_frame, end_frame = dialog.get_values()
-            self.labels.append((label_name, label_value, start_frame, end_frame))
+        try:
+            # Create a new label entry
+            label_name = QLineEdit(self)
+            label_value = QLineEdit(self)
+            numeric_label = QCheckBox("Numeric Label", self)
+
+            intervals_widget = QWidget(self)
+            intervals_layout = QVBoxLayout(intervals_widget)
+            add_interval_button = QPushButton("Add Interval", self)
+            intervals_layout.addWidget(add_interval_button)
+
+            # Add the new label entry to the layout
+            label_form = QFormLayout()
+            label_form.addRow("Label Name:", label_name)
+            label_form.addRow("Label Value:", label_value)
+            label_form.addRow("Numeric Label:", numeric_label)
+
+            collapse_button = QToolButton(self)
+            collapse_button.setArrowType(Qt.ArrowType.RightArrow)
+            collapse_button.setCheckable(True)
+            collapse_button.setChecked(False)
+            collapse_button.setIconSize(QSize(12, 12))
+
+            label_widget = QWidget(self)
+            label_widget_layout = QVBoxLayout(label_widget)
+            label_widget_layout.addLayout(label_form)
+            label_widget_layout.addWidget(collapse_button)
+            label_widget_layout.addWidget(intervals_widget)
+
+            self.labels_layout.addWidget(label_widget)
+
+            # Store the label inputs and intervals
+            intervals = []
+            self.labels.append((label_name, label_value, numeric_label, intervals, intervals_widget, collapse_button))
+
+            def add_interval():
+                start_frame = QLineEdit(self)
+                end_frame = QLineEdit(self)
+                interval_layout = QFormLayout()
+                interval_layout.addRow("Start Frame:", start_frame)
+                interval_layout.addRow("End Frame:", end_frame)
+                intervals_layout.addLayout(interval_layout)
+                intervals.append((start_frame, end_frame))
+
+            add_interval_button.clicked.connect(add_interval)
+
+            def toggle_intervals():
+                try:
+                    if collapse_button.isChecked():
+                        collapse_button.setArrowType(Qt.ArrowType.DownArrow)
+                        intervals_widget.setVisible(True)
+                    else:
+                        collapse_button.setArrowType(Qt.ArrowType.RightArrow)
+                        intervals_widget.setVisible(False)
+                except Exception as e:
+                    print(f"Error toggling intervals: {e}")
+
+            collapse_button.clicked.connect(toggle_intervals)
+            intervals_widget.setVisible(False)
+
+        except Exception as e:
+            print(f"Error adding label: {e}")
 
     def save_csv(self):
         climber_id = "climber_001"  # Example climber ID
@@ -114,10 +175,17 @@ class PoseLabelingTool(QMainWindow):
                 frame_data[f"kp{i}_x"] = point[0]
                 frame_data[f"kp{i}_y"] = point[1]
                 frame_data[f"kp{i}_z"] = point[2]
-            for label in self.labels:
-                label_name, label_value, start_frame, end_frame = label
-                if start_frame <= frame <= end_frame:
-                    frame_data[label_name] = label_value
+            for label_name, label_value, numeric_label, intervals, _, _ in self.labels:
+                label_name_text = label_name.text()
+                label_value_text = label_value.text()
+                is_numeric = numeric_label.isChecked()
+                for start_frame, end_frame in intervals:
+                    if int(start_frame.text()) <= frame <= int(end_frame.text()):
+                        frame_data[label_name_text] = label_value_text
+                        break
+                else:
+                    if is_numeric:
+                        frame_data[label_name_text] = 0
             data.append(frame_data)
 
         df = pd.DataFrame(data)
