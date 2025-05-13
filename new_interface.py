@@ -114,8 +114,8 @@ class NewInterface(QMainWindow):
         id_layout = QFormLayout()
         self.climber_id_input = QLineEdit("climber_001", self);
         self.route_id_input = QLineEdit("route_001", self)
-        id_layout.addRow("Climber ID:", self.climber_id_input);
-        id_layout.addRow("Route ID:", self.route_id_input)
+        id_layout.addRow("Subject ID:", self.climber_id_input);
+        id_layout.addRow("Action ID:", self.route_id_input)
         right_panel.addLayout(id_layout)
         label_controls_layout = QHBoxLayout()
         self.load_labels_button = QPushButton("Load Label Names (.txt)", self);
@@ -272,7 +272,7 @@ class NewInterface(QMainWindow):
         label_name_display = QLabel(label_name)
         label_value_input = QLineEdit(self)
         label_value_input.setEnabled(self.keypoints is not None)
-        numeric_label_checkbox = QCheckBox("Numeric", self)
+        numeric_label_checkbox = QCheckBox("Numeric (Zero Padding)", self)
 
         delete_button = QPushButton("X", self)
         delete_button.setFixedSize(QSize(22, 22))  # Small square button
