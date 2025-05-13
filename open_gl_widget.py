@@ -1,4 +1,3 @@
-# open_gl_widget.py
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from PyQt6.QtCore import QPoint, Qt, pyqtSignal
 from PyQt6.QtGui import QMouseEvent

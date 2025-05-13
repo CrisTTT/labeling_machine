@@ -1,5 +1,3 @@
-# classic_interface.py
-# (Same imports as before, including QApplication)
 import sys
 import os
 import numpy as np
@@ -17,7 +15,6 @@ from open_gl_widget import OpenGLWidget
 from utils import load_keypoint_data
 import warnings
 
-# (LabelData class remains the same)
 class LabelData:
     """ Helper class to store data for a single label category. """
     def __init__(self, name="", is_numeric=False):
@@ -47,7 +44,6 @@ class ClassicInterface(QMainWindow):
         self.initUI()
         self.update_widget_states() # Initial state (most things disabled)
 
-    # (initUI remains the same)
     def initUI(self):
         self.setWindowTitle('Classic 3D Pose Labeling Tool')
         self.setGeometry(100, 100, 1300, 700) # Increased size slightly
@@ -99,14 +95,13 @@ class ClassicInterface(QMainWindow):
 
     def update_widget_states(self):
         """ Enable/disable widgets based on loaded data. """
-        # print("DEBUG: Entering update_widget_states") # Keep debug print if needed
+        # print("DEBUG: Entering update_widget_states")
         has_video = self.cap is not None and self.cap.isOpened()
         has_keypoints = self.keypoints is not None
 
         self.slider.setEnabled(has_video or has_keypoints)
         self.openGLWidget.setEnabled(has_keypoints)
 
-        # --- FIX: Cast to bool ---
         self.save_button.setEnabled(bool(has_keypoints and self.label_data_list))
 
         self.add_label_button.setEnabled(True)
@@ -122,13 +117,10 @@ class ClassicInterface(QMainWindow):
              self.slider.setMaximum(0)
              self.frame_index = 0
 
-        # Avoid calling update_frame_display from here if it causes issues?
-        # Or ensure update_frame_display is robust. Let's keep it for now.
         self.update_frame_display()
         # print("DEBUG: Exiting update_widget_states")
 
 
-    # (show_status_message, display_error_message remain the same)
     def show_status_message(self, message, timeout=3000):
         self.statusBar.showMessage(message, timeout)
 
@@ -138,7 +130,6 @@ class ClassicInterface(QMainWindow):
         self.show_status_message(f"Error: {message}", 5000)
 
 
-    # (load_video remains the same)
     def load_video(self):
         video_file, _ = QFileDialog.getOpenFileName(self, "Select Video File", "", "MP4 Files (*.mp4);;All Files (*)")
         if video_file:
@@ -167,7 +158,7 @@ class ClassicInterface(QMainWindow):
 
 
     def load_keypoints(self):
-        # print("DEBUG: Entering load_keypoints") # Keep if needed
+        # print("DEBUG: Entering load_keypoints")
         file_filter = "Keypoints Files (*.npy *.csv);;All Files (*)"
         keypoints_file, _ = QFileDialog.getOpenFileName(self, "Select Keypoints File", "", file_filter)
         if keypoints_file:
@@ -185,11 +176,8 @@ class ClassicInterface(QMainWindow):
                  # print("DEBUG: Exiting load_keypoints (invalid shape)")
                  return
 
-            # --- Restore Y-Flip ---
-            # print("DEBUG: Flipping Y coordinate...")
             keypoints_data[:, :, 1] *= -1
             self.show_status_message("Note: Flipped Y-coordinate of keypoints for OpenGL display.", 4000)
-            # print("DEBUG: Y coordinate flipped.")
 
             self.keypoints = keypoints_data
             self.keypoints_path = keypoints_file
@@ -216,23 +204,15 @@ class ClassicInterface(QMainWindow):
             self.frame_index = 0 # Reset frame index
             # print(f"DEBUG: self.frame_index = {self.frame_index}")
 
-            # --- OpenGL data setting still commented out ---
             # print("DEBUG: Skipping set_data")
             self.openGLWidget.set_data(self.keypoints, self.limbSeq)
 
-            # --- Restore subsequent updates ---
             # print("DEBUG: Restoring update_widget_states, display_video_frame, show_status_message")
             self.update_widget_states()
             self.display_video_frame() # Update video frame as well
             self.show_status_message(f"Keypoints loaded: {os.path.basename(keypoints_file)} ({self.total_frames} frames, {self.keypoints.shape[1]} points)", 5000)
 
-            # --- Final print before exiting ---
             # print("DEBUG: Exiting load_keypoints (updates restored)")
-
-
-    # (Rest of the methods: load_label_names, slider_update_frame, update_frame_display, display_video_frame, label management, saving, closeEvent... remain the same as the previous full version)
-    # ... Copy the rest of the methods from the previous full code block here ...
-    # --- Frame Navigation & Display ---
 
     def slider_update_frame(self, value):
         if self.keypoints is not None or self.cap is not None:
@@ -362,7 +342,6 @@ class ClassicInterface(QMainWindow):
 
     # --- Saving ---
     def save_csv(self):
-        # (Method remains the same as previous version)
         if self.keypoints is None: self.display_error_message("Save Error", "No keypoints loaded."); return
         has_named_labels = any(ld.name for ld in self.label_data_list if hasattr(ld, 'name'))
         if not has_named_labels: self.display_error_message("Save Error", "No labels defined/named."); return

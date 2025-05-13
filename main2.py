@@ -1,9 +1,7 @@
-# main2.py
 import sys
 from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QPushButton, QWidget, QLabel, QMessageBox
 from PyQt6.QtCore import Qt
 
-# Import the refactored interfaces
 try:
     from classic_interface import ClassicInterface
 except ImportError as e:
@@ -14,9 +12,6 @@ try:
 except ImportError as e:
      QMessageBox.critical(None, "Import Error", f"Could not import NewInterface: {e}\nMake sure new_interface.py is in the same directory.")
      sys.exit(1)
-
-# Remove pose_labeling_tool import as it's likely redundant
-
 
 class LauncherWindow(QMainWindow):
     def __init__(self):
@@ -95,14 +90,14 @@ class LauncherWindow(QMainWindow):
 
 
 def main():
-    # Enable High DPI scaling for better visuals on modern displays
+    # Enable High DPI scaling for better visuals on modern displays. Currently not functional, causes a crash
     #QApplication.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling, True)
     #QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
 
     app = QApplication(sys.argv)
 
     # Set a style if desired (optional)
-    # app.setStyle('Fusion')
+    #app.setStyle('Fusion')
 
     main_window = LauncherWindow()
     main_window.show()

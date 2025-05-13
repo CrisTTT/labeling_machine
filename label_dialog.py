@@ -1,4 +1,3 @@
-# label_dialog.py
 from PyQt6.QtWidgets import (QDialog, QFormLayout, QLineEdit,
                              QDialogButtonBox, QMessageBox)
 import warnings
