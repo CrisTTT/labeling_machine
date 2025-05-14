@@ -7,24 +7,10 @@ def load_keypoint_data(file_path):
     """
     Loads keypoint data from .npy or .csv files with error handling.
     It attempts to return a 3D NumPy array of shape (frames, num_keypoints, 3).
-
-    For CSVs, it:
-    1. Reads the file, assuming no explicit header for initial parsing.
-    2. Converts content to numeric, coercing errors to NaN.
-    3. Drops rows and columns that are entirely NaN (to remove text headers/metadata).
-    4. Heuristically attempts to identify and remove a leading 'frame' index column
-       if the remaining columns can then form valid 3D keypoints.
-    5. Reshapes the cleaned numeric data to (frames, num_keypoints, 3).
-
-    For NPYs, it:
-    1. Loads the array.
-    2. If 2D, attempts to reshape if columns are a multiple of 3.
-    3. Validates that the final shape is (frames, num_keypoints, 3).
     """
     try:
         if file_path.endswith('.npy'):
             keypoints = np.load(file_path)
-
             if keypoints.ndim == 3 and keypoints.shape[-1] == 3:
                 return keypoints
             elif keypoints.ndim == 2 and keypoints.shape[1] > 0 and keypoints.shape[1] % 3 == 0:
@@ -47,16 +33,18 @@ def load_keypoint_data(file_path):
                 df = pd.read_csv(file_path, header=None, skip_blank_lines=True)
 
                 if df.empty:
-                    warnings.warn(f"Warning: CSV file '{file_path}' is empty or contains only blank lines.",
+                    # This case is often caught by EmptyDataError if file is truly empty or unparsable
+                    warnings.warn(f"Warning: CSV file '{file_path}' is empty or resulted in an empty DataFrame.",
                                   UserWarning)
                     return None
 
-                df_numeric = df.apply(pd.to_numeric, errors='coerce')
-                df_cleaned_rows = df_numeric.dropna(axis=0, how='all')
+                df_numeric_coerce = df.apply(pd.to_numeric, errors='coerce')
+                df_cleaned_rows = df_numeric_coerce.dropna(axis=0, how='all')
 
                 if df_cleaned_rows.empty:
-                    warnings.warn(f"Warning: No data rows found in CSV '{file_path}' after cleaning headers.",
-                                  UserWarning)
+                    warnings.warn(
+                        f"Warning: No data rows found in CSV '{file_path}' after attempting to clean headers/text.",
+                        UserWarning)
                     return None
 
                 df_cleaned_cols = df_cleaned_rows.dropna(axis=1, how='all')
@@ -72,9 +60,8 @@ def load_keypoint_data(file_path):
                 if num_initial_numeric_cols > 1:
                     first_col_is_int_like = False
                     try:
-                        # Attempt to cast to float then to nullable Int to check if it's mostly integers
-                        # This avoids erroring on NaNs if some survived, but still checks integer nature
-                        if not df_cleaned_cols.iloc[:, 0].isnull().all():  # Check if not all NaN
+                        if not df_cleaned_cols.iloc[:, 0].isnull().all():
+                            # Check if convertible to float first, then to Int64 for null-safety
                             df_cleaned_cols.iloc[:, 0].astype(float).astype('Int64')
                             first_col_is_int_like = True
                     except (ValueError, TypeError):
@@ -94,7 +81,16 @@ def load_keypoint_data(file_path):
                                   UserWarning)
                     return None
 
-                keypoints_2d = potential_keypoint_df.values.astype(float)
+                # CRITICAL CHECK: After all cleaning, if any NaNs remain in the data intended for keypoints,
+                # it means some original non-numeric string data was present where numbers were expected.
+                if potential_keypoint_df.isnull().values.any():
+                    warnings.warn(
+                        f"Warning: CSV file '{file_path}' contains non-numeric values or unparseable entries "
+                        "within the presumed keypoint data area. Cannot form clean numeric keypoints.", UserWarning
+                    )
+                    return None  # Keypoint data must be purely numeric
+
+                keypoints_2d = potential_keypoint_df.values.astype(float)  # Now this should be safe
 
                 num_frames = keypoints_2d.shape[0]
                 num_data_columns = keypoints_2d.shape[1]
