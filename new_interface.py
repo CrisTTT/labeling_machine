@@ -1,4 +1,3 @@
-# new_interface.py
 import sys
 import os
 import numpy as np
@@ -10,7 +9,7 @@ from PyQt6.QtWidgets import (QMainWindow, QHBoxLayout, QVBoxLayout, QLabel,
                              QFormLayout, QCheckBox, QScrollArea, QMessageBox,
                              QSizePolicy, QStatusBar, QSlider,
                              QApplication)
-from PyQt6.QtCore import Qt, QSize  # Added QSize for delete button
+from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QImage, QPixmap, QCloseEvent
 
 from open_gl_widget import OpenGLWidget
@@ -19,11 +18,11 @@ import warnings
 
 
 class LabelUIElements:
-    def __init__(self, name_widget, value_widget, numeric_checkbox, container_widget):  # Added container_widget
+    def __init__(self, name_widget, value_widget, numeric_checkbox, container_widget):
         self.name_widget = name_widget
         self.value_widget = value_widget
         self.numeric_checkbox = numeric_checkbox
-        self.container_widget = container_widget  # Store the main QWidget for this label row
+        self.container_widget = container_widget
 
 
 class NewInterface(QMainWindow):
@@ -41,7 +40,7 @@ class NewInterface(QMainWindow):
                         [12, 13], [14, 15], [15, 16]]
         self.label_names = []
         self.label_is_numeric = {}
-        self.label_ui_elements = {}  # Stores LabelUIElements instances
+        self.label_ui_elements = {}
         self.label_values = {}
         self.csv_file = None
         self._has_unsaved_changes = False
@@ -157,7 +156,9 @@ class NewInterface(QMainWindow):
         if data_loaded:
             self.slider.setMaximum(self.total_frames - 1 if self.total_frames > 0 else 0)
         else:
-            self.slider.setMaximum(0); self.frame_index = 0; self.frame_label.setText("Frame: N/A")
+            self.slider.setMaximum(0);
+            self.frame_index = 0;
+            self.frame_label.setText("Frame: N/A")
         if data_loaded: self.update_frame_display()
 
     def show_status_message(self, message, timeout=3000):
@@ -199,12 +200,24 @@ class NewInterface(QMainWindow):
         file_filter = "Keypoints Files (*.npy *.csv);;All Files (*)";
         keypoints_file, _ = QFileDialog.getOpenFileName(self, "Select Keypoints File", "", file_filter)
         if keypoints_file:
-            keypoints_data = load_keypoint_data(keypoints_file)
+            keypoints_data = load_keypoint_data(keypoints_file)  # From joss_utils_py_refined_v2
             if keypoints_data is None: self.display_error_message("Keypoint Load Error",
                                                                   f"Failed load: {keypoints_file}"); return
             if keypoints_data.ndim != 3 or keypoints_data.shape[2] != 3: self.display_error_message(
                 "Keypoint Data Error", f"Invalid shape: {keypoints_data.shape}. Expected (frames, points, 3)."); return
-            keypoints_data[:, :, 1] *= -1
+
+            # --- Updated Conditional Flips ---
+            if keypoints_file.endswith('.npy'):
+                keypoints_data[:, :, 1] *= -1  # Flip Y for NPY (to make Y-up for OpenGL)
+                keypoints_data[:, :, 0] *= -1  # Flip X for NPY (to correct mirroring)
+                self.show_status_message("Note: Flipped Y and X coordinates for .npy keypoints.", 4000)
+            elif keypoints_file.endswith('.csv'):
+                # Assuming CSVs are Y-up from source, but X-mirrored
+                keypoints_data[:, :, 0] *= -1  # Flip X for CSV (to correct mirroring)
+                # Y is not flipped for CSV, assuming it's already OpenGL Y-up
+                self.show_status_message("Note: Flipped X-coordinate for .csv keypoints.", 4000)
+            # --- End Updated Conditional Flips ---
+
             self.keypoints = keypoints_data;
             self.keypoints_path = keypoints_file;
             self.keypoints_path_label.setText(os.path.basename(keypoints_file))
@@ -240,12 +253,14 @@ class NewInterface(QMainWindow):
             for name in self.label_names: self.label_is_numeric[name] = False; self._add_label_ui(name)
             self.show_status_message(f"Loaded {len(self.label_names)} names. Initializing...", 0);
             QApplication.processEvents()
-            self._load_or_initialize_label_data()
+            self._load_or_initialize_label_data()  # Uses the version from joss_new_interface_py_test_fixes_v7
         except FileNotFoundError:
             self.display_error_message("Load Error", f"File not found: {label_file}")
         except Exception as e:
             self.display_error_message("Load Error",
-                                       f"Failed load names: {e}"); self._clear_labels(); self.update_widget_states()
+                                       f"Failed load names: {e}");
+            self._clear_labels();
+            self.update_widget_states()
 
     def _clear_labels(self):
         self.label_names = [];
@@ -253,11 +268,10 @@ class NewInterface(QMainWindow):
         self.label_values = {};
         self.csv_file = None;
         self._has_unsaved_changes = False
-        for label_name in list(self.label_ui_elements.keys()):  # Iterate over keys copy
+        for label_name in list(self.label_ui_elements.keys()):
             elements = self.label_ui_elements.pop(label_name)
-            if elements.container_widget:  # Use the stored container
+            if elements.container_widget:
                 elements.container_widget.deleteLater()
-        # Fallback if something went wrong with container_widget storage (should not be needed)
         while self.labels_layout.count():
             child = self.labels_layout.takeAt(0)
             if child.widget(): child.widget().deleteLater()
@@ -265,26 +279,25 @@ class NewInterface(QMainWindow):
     def _add_label_ui(self, label_name):
         if label_name in self.label_ui_elements: print(f"Warn: UI exists '{label_name}'."); return
 
-        label_container_widget = QWidget(self)  # Main container for this label's UI row
-        row_layout = QHBoxLayout(label_container_widget)  # Use QHBoxLayout for horizontal arrangement
+        label_container_widget = QWidget(self)
+        row_layout = QHBoxLayout(label_container_widget)
         row_layout.setContentsMargins(0, 0, 0, 0)
 
         label_name_display = QLabel(label_name)
         label_value_input = QLineEdit(self)
         label_value_input.setEnabled(self.keypoints is not None)
-        numeric_label_checkbox = QCheckBox("Numeric (Zero Padding)", self)
+        numeric_label_checkbox = QCheckBox("Numeric (Zero Padding)", self)  # Your text
 
         delete_button = QPushButton("X", self)
-        delete_button.setFixedSize(QSize(22, 22))  # Small square button
+        delete_button.setFixedSize(QSize(22, 22))
         delete_button.setToolTip(f"Delete label '{label_name}'")
         delete_button.setStyleSheet("QPushButton { color: red; font-weight: bold; }")
-        # Use a lambda to pass the specific label_name to the delete function
         delete_button.clicked.connect(lambda checked=False, name=label_name: self._prompt_delete_label(name))
 
         row_layout.addWidget(label_name_display)
-        row_layout.addWidget(label_value_input, 1)  # Give value input stretch factor
+        row_layout.addWidget(label_value_input, 1)
         row_layout.addWidget(numeric_label_checkbox)
-        row_layout.addWidget(delete_button)  # Add delete button to the row
+        row_layout.addWidget(delete_button)
 
         self.labels_layout.addWidget(label_container_widget)
 
@@ -292,6 +305,7 @@ class NewInterface(QMainWindow):
                                       label_container_widget)
         self.label_ui_elements[label_name] = ui_elements
 
+        numeric_label_checkbox.setChecked(self.label_is_numeric.get(label_name, False))
         numeric_label_checkbox.stateChanged.connect(
             lambda state, name=label_name: self.label_is_numeric.update({name: state == Qt.CheckState.Checked.value}))
         label_value_input.textChanged.connect(lambda text, name=label_name, iw=label_value_input,
@@ -299,108 +313,113 @@ class NewInterface(QMainWindow):
                                                                                                                    text,
                                                                                                                    iw,
                                                                                                                    cb))
-        numeric_label_checkbox.setChecked(self.label_is_numeric.get(label_name, False))
         value = self.label_values.get(self.frame_index, {}).get(label_name, "");
         label_value_input.setText(str(value))
 
     def _prompt_delete_label(self, label_name_to_delete):
-        """Asks for confirmation before deleting a label."""
         if label_name_to_delete not in self.label_names:
             self.show_status_message(f"Label '{label_name_to_delete}' not found for deletion.", 3000)
             return
-
         reply = QMessageBox.question(self, 'Confirm Delete',
                                      f"Are you sure you want to delete the label '{label_name_to_delete}' and all its associated data for every frame?",
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                                      QMessageBox.StandardButton.No)
-
         if reply == QMessageBox.StandardButton.Yes:
             self._delete_label_data(label_name_to_delete)
 
     def _delete_label_data(self, label_name_to_delete):
-        """Handles the actual deletion of label data and UI."""
         try:
-            # 1. Remove UI elements
             if label_name_to_delete in self.label_ui_elements:
                 elements_to_remove = self.label_ui_elements.pop(label_name_to_delete)
                 if elements_to_remove.container_widget:
                     elements_to_remove.container_widget.deleteLater()
-
-            # 2. Remove from data structures
             if label_name_to_delete in self.label_names:
                 self.label_names.remove(label_name_to_delete)
             if label_name_to_delete in self.label_is_numeric:
                 del self.label_is_numeric[label_name_to_delete]
-
             for frame_idx in self.label_values:
                 if label_name_to_delete in self.label_values[frame_idx]:
                     del self.label_values[frame_idx][label_name_to_delete]
-
             self._has_unsaved_changes = True
-            self.update_widget_states()  # Refresh UI states (e.g., save button)
+            self.update_widget_states()
             self.show_status_message(f"Label '{label_name_to_delete}' deleted.", 3000)
-
         except Exception as e:
             self.display_error_message("Delete Error", f"Could not delete label '{label_name_to_delete}': {e}")
 
-    def _load_or_initialize_label_data(self):
-        if self.keypoints is None or not self.label_names: self.show_status_message(
-            "Cannot init: Load keypoints & labels.", 5000); return
-        if not self.keypoints_path: self.display_error_message("Data Error", "Keypoints path missing."); return
-        base_name = os.path.splitext(self.keypoints_path)[0];
+    def _load_or_initialize_label_data(self):  # Using version from joss_new_interface_py_test_fixes_v7
+        if self.keypoints is None or not self.label_names:
+            self.show_status_message("Cannot initialize: Load keypoints and label names first.", 5000)
+            return
+        if not self.keypoints_path:
+            self.display_error_message("Data Error", "Keypoints path is missing for CSV determination.")
+            return
+
+        base_name = os.path.splitext(self.keypoints_path)[0]
         self.csv_file = f"{base_name}_newlabels.csv"
-        self.label_values = {};
+        self.label_values = {}
         self._has_unsaved_changes = False
+
         try:
             if os.path.exists(self.csv_file):
-                self.show_status_message(f"Loading from {self.csv_file}...", 0);
-                df = pd.read_csv(self.csv_file)
-                required_cols = ["frame"] + self.label_names;
-                missing_cols = [col for col in required_cols if col not in df.columns]
-                if "frame" not in df.columns: raise ValueError("CSV missing 'frame' column.")
-                if missing_cols:
-                    self.show_status_message(f"Warn: CSV missing: {missing_cols}. Init defaults.", 5000)
-                    for col in missing_cols: df[col] = 0.0 if self.label_is_numeric.get(col, False) else ""
-                for _, row in df.iterrows():
-                    frame = int(row["frame"]);
-                    if frame not in self.label_values: self.label_values[frame] = {}
-                    for label_name in self.label_names:  # Only process known labels
-                        if label_name in df.columns:  # Check if column exists for this label
-                            value = row.get(label_name);
-                            is_numeric = self.label_is_numeric.get(label_name, False)
-                            if pd.isna(value):
-                                value = 0.0 if is_numeric else ""
+                self.show_status_message(f"Loading existing labels from {self.csv_file}...", 0)
+                df = pd.read_csv(self.csv_file, dtype=str, na_filter=False)
+
+                if "frame" not in df.columns:
+                    raise ValueError("Existing CSV is missing the required 'frame' column.")
+
+                for frame_idx_str in df["frame"].unique():
+                    frame = int(frame_idx_str)
+                    if frame not in self.label_values:
+                        self.label_values[frame] = {}
+
+                    row_series = df[df["frame"] == frame_idx_str].iloc[0]
+
+                    for label_name in self.label_names:
+                        is_numeric = self.label_is_numeric.get(label_name, False)
+                        default_value = 0.0 if is_numeric else ""
+
+                        value_from_csv_str = ""
+                        if label_name in df.columns:
+                            raw_cell_value = row_series.get(label_name)
+                            value_from_csv_str = str(raw_cell_value) if raw_cell_value is not None else ""
+
+                        if value_from_csv_str.strip() == "":
+                            value = default_value
+                        else:
+                            if is_numeric:
+                                try:
+                                    value = float(value_from_csv_str)
+                                except ValueError:
+                                    value = 0.0
                             else:
-                                if is_numeric:
-                                    try:
-                                        value = float(value)
-                                    except (ValueError, TypeError):
-                                        value = 0.0
-                                else:
-                                    value = str(value)
-                            self.label_values[frame][label_name] = value
-                        else:  # Label defined in app but not in CSV, give default
-                            self.label_values[frame][label_name] = 0.0 if self.label_is_numeric.get(label_name,
-                                                                                                    False) else ""
-                self.show_status_message(f"Loaded labels from {self.csv_file}", 5000)
+                                value = value_from_csv_str
+                        self.label_values[frame][label_name] = value
+                self.show_status_message(f"Successfully loaded labels from {self.csv_file}", 5000)
+
             else:
-                self.show_status_message(f"No label file. Creating: {self.csv_file}", 0)
+                self.show_status_message(f"No existing label file found. Creating new file: {self.csv_file}", 0)
                 num_frames = self.keypoints.shape[0]
                 for frame_idx in range(num_frames):
-                    self.label_values[frame_idx] = {name: (0.0 if self.label_is_numeric.get(name, False) else "") for
-                                                    name in self.label_names}
+                    self.label_values[frame_idx] = {
+                        name: (0.0 if self.label_is_numeric.get(name, False) else "")
+                        for name in self.label_names
+                    }
                 self.show_status_message(f"Initialized empty labels for {num_frames} frames. Save to create CSV.", 5000)
+
         except FileNotFoundError:
-            self.display_error_message("Load Error", f"Not found: {self.csv_file}"); self.csv_file = None
+            self.display_error_message("Load Error", f"Could not find CSV file: {self.csv_file}")
+            self.csv_file = None
         except (ValueError, KeyError, pd.errors.ParserError, Exception) as e:
             self.display_error_message("Load Error",
-                                       f"Failed load CSV ({self.csv_file}):\n{e}\nRe-initializing empty.");
+                                       f"Failed to load or parse existing CSV ({self.csv_file}):\n{e}\n\nRe-initializing with empty labels.")
             self.label_values = {}
-            self.csv_file = f"{base_name}_newlabels.csv";
+            self.csv_file = f"{base_name}_newlabels.csv"
             num_frames = self.keypoints.shape[0]
-            for frame_idx in range(num_frames): self.label_values[frame_idx] = {
-                name: (0.0 if self.label_is_numeric.get(name, False) else "") for name in self.label_names}
-        self.update_label_value_inputs();
+            for frame_idx in range(num_frames):
+                self.label_values[frame_idx] = {name: (0.0 if self.label_is_numeric.get(name, False) else "") for name
+                                                in self.label_names}
+
+        self.update_label_value_inputs()
         self.update_widget_states()
 
     def prev_frame(self):
@@ -451,7 +470,8 @@ class NewInterface(QMainWindow):
                                                   Qt.TransformationMode.SmoothTransformation)
                     self.video_label.setPixmap(scaled_pixmap)
                 except Exception as e:
-                    print(f"Error display frame {self.frame_index}: {e}"); self.video_label.setText(
+                    print(f"Error display frame {self.frame_index}: {e}");
+                    self.video_label.setText(
                         "Error Displaying Frame")
             else:
                 self.video_label.setText(f"Read Error (Frame {self.frame_index})")
@@ -478,13 +498,21 @@ class NewInterface(QMainWindow):
             try:
                 current_value = float(text.strip())
             except ValueError:
-                input_widget.setStyleSheet("QLineEdit { background-color: #ffdddd; }"); self.show_status_message(
-                    f"Warn: Invalid numeric '{text}' for {label_name}.", 3000); parse_error = True; current_value = 0.0
+                input_widget.setStyleSheet("QLineEdit { background-color: #ffdddd; }");
+                self.show_status_message(
+                    f"Warn: Invalid numeric '{text}' for {label_name}.", 3000);
+                parse_error = True;
+                current_value = 0.0
             else:
                 input_widget.setStyleSheet("")
         else:
-            current_value = text; input_widget.setStyleSheet("")
-        if not parse_error and self.label_values[self.frame_index].get(label_name) != current_value:
+            current_value = text;
+            input_widget.setStyleSheet("")
+
+        previous_value = self.label_values[self.frame_index].get(label_name)
+
+        if (is_numeric and parse_error) or \
+                (not parse_error and previous_value != current_value):
             self.label_values[self.frame_index][label_name] = current_value;
             self._has_unsaved_changes = True
 
@@ -522,7 +550,7 @@ class NewInterface(QMainWindow):
             headers = ["climber_id", "route_id", "frame"];
             num_kps = self.keypoints.shape[1]
             for i in range(num_kps): headers.extend([f"kp{i}_x", f"kp{i}_y", f"kp{i}_z"])
-            headers.extend(self.label_names)  # Use self.label_names which is up-to-date
+            headers.extend(self.label_names)
             for frame_idx in range(num_frames):
                 frame_data = {"climber_id": climber_id, "route_id": route_id, "frame": frame_idx}
                 for kp_idx, point in enumerate(self.keypoints[frame_idx]):
@@ -530,11 +558,11 @@ class NewInterface(QMainWindow):
                     frame_data[f"kp{kp_idx}_y"] = point[1];
                     frame_data[f"kp{kp_idx}_z"] = point[2]
                 frame_labels = self.label_values.get(frame_idx, {})
-                for label_name in self.label_names:  # Iterate through current, valid label names
+                for label_name in self.label_names:
                     is_numeric = self.label_is_numeric.get(label_name, False);
                     default_value = 0.0 if is_numeric else ""
                     value = frame_labels.get(label_name,
-                                             default_value)  # Get value, provide default if label/frame missing
+                                             default_value)
                     if is_numeric:
                         try:
                             value = float(value)
@@ -551,7 +579,8 @@ class NewInterface(QMainWindow):
             self._has_unsaved_changes = False
             self.show_status_message(f"Saved to {save_path}", 5000)
         except Exception as e:
-            self.display_error_message("Save Error", f"Unexpected save error:\n{e}"); self.show_status_message(
+            self.display_error_message("Save Error", f"Unexpected save error:\n{e}");
+            self.show_status_message(
                 "Save failed.", 5000)
 
     def closeEvent(self, event: QCloseEvent):
@@ -561,8 +590,10 @@ class NewInterface(QMainWindow):
                                          QMessageBox.StandardButton.Cancel)
             if reply == QMessageBox.StandardButton.Save: self.save_csv(show_dialog=False);
             if self._has_unsaved_changes:
-                event.ignore(); return
+                event.ignore();
+                return
             elif reply == QMessageBox.StandardButton.Cancel:
-                event.ignore(); return
+                event.ignore();
+                return
         if self.cap: self.cap.release()
         event.accept()
