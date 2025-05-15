@@ -1,21 +1,19 @@
-# tests/test_new_interface.py
 import unittest
 from unittest.mock import patch, MagicMock
 import os
 import tempfile
 import numpy as np
 import pandas as pd
-
-# Add the project root to the Python path
 import sys
 
+# Add the project root to the Python path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), 'D:\motion\labeling-machine'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from PyQt6.QtWidgets import QApplication, QLineEdit, QCheckBox
-from new_interface import NewInterface, \
-    LabelUIElements  # Assuming LabelUIElements is accessible or part of NewInterface
+from interface import Interface, \
+    LabelUIElements  # Assuming LabelUIElements is accessible or part of Interface
 
 # Ensure a QApplication instance exists for Qt-dependent parts
 app = QApplication.instance()
@@ -23,15 +21,15 @@ if app is None:
     app = QApplication(sys.argv)
 
 
-class TestNewInterfaceDataHandling(unittest.TestCase):
+class TestInterfaceDataHandling(unittest.TestCase):
 
     def setUp(self):
-        """Set up a NewInterface instance and temporary files for testing."""
+        """Set up a Interface instance and temporary files for testing."""
         self.temp_dir = tempfile.TemporaryDirectory()
 
-        # Create a NewInterface instance (it will create its own UI elements)
+        # Create an Interface instance (it will create its own UI elements)
         # We won't show it, just test its logic.
-        self.interface = NewInterface()
+        self.interface = Interface()
 
         # Mock essential UI elements that are directly accessed or would be created
         # by methods we are not calling directly (like _add_label_ui if not triggered)
@@ -138,7 +136,7 @@ class TestNewInterfaceDataHandling(unittest.TestCase):
         self.assertEqual(self.interface.label_values[2]["count"], 0.0)
         mock_input_widget.setStyleSheet.assert_called_with("QLineEdit { background-color: #ffdddd; }")
 
-    @patch('new_interface.QFileDialog.getSaveFileName')
+    @patch('interface.QFileDialog.getSaveFileName')
     def test_save_csv_data_preparation(self, mock_get_save_file_name):
         """Test the data structure prepared by save_csv before writing."""
         # Mock QFileDialog to return a dummy path and not show a dialog
@@ -156,7 +154,7 @@ class TestNewInterfaceDataHandling(unittest.TestCase):
 
         # Mock the part of save_csv that creates the DataFrame
         # We need to capture the 'data_to_save' list
-        with patch('new_interface.pd.DataFrame') as mock_pd_dataframe:
+        with patch('interface.pd.DataFrame') as mock_pd_dataframe:
             self.interface.save_csv(show_dialog=False)  # Use current self.csv_file or trigger internal logic
 
             self.assertTrue(mock_pd_dataframe.called, "pandas.DataFrame should have been called.")

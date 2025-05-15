@@ -1,4 +1,4 @@
-# new_interface.py
+# interface.py
 import sys
 import os
 import numpy as np
@@ -52,7 +52,7 @@ class SelectLabelsDialog(QDialog):
         return selected
 
 
-class NewInterface(QMainWindow):
+class Interface(QMainWindow):
     def __init__(self):
         super().__init__()
         self.keypoints = None

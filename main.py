@@ -4,20 +4,20 @@ from PyQt6.QtCore import Qt
 import traceback
 
 try:
-    from new_interface import NewInterface
+    from interface import Interface
 except ImportError as e:
-    print(f"CRITICAL IMPORT ERROR: Could not import NewInterface: {e}")
+    print(f"CRITICAL IMPORT ERROR: Could not import Interface: {e}")
     if QApplication.instance():
         QMessageBox.critical(None, "Import Error",
-                             f"Could not import NewInterface: {e}\nMake sure new_interface.py is in the same directory.")
+                             f"Could not import Interface: {e}\nMake sure new_interface.py is in the same directory.")
     else:  # Fallback if QApplication itself fails or isn't instantiated
         # Create a temporary app to show the message box
         temp_app = QApplication(sys.argv)
         QMessageBox.critical(None, "Import Error",
-                             f"Could not import NewInterface: {e}\nMake sure new_interface.py is in the same directory.")
+                             f"Could not import Interface: {e}\nMake sure new_interface.py is in the same directory.")
     sys.exit(1)
 except Exception as e_gen:  # Catch any other exception during import
-    print(f"CRITICAL UNEXPECTED IMPORT ERROR (NewInterface): {e_gen}")
+    print(f"CRITICAL UNEXPECTED IMPORT ERROR (Interface): {e_gen}")
     traceback.print_exc()
     sys.exit(1)
 
@@ -56,7 +56,7 @@ class LauncherWindow(QMainWindow):
             QMessageBox.information(self, "Info", "Labeling interface is already open.")
             return
         try:
-            new_win = NewInterface()
+            new_win = Interface()
             new_win.show()
             self.opened_window = new_win
             self.close()  # Close the launcher window
