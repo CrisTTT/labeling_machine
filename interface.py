@@ -321,7 +321,7 @@ class Interface(QMainWindow):
         label_value_input.setEnabled(self.keypoints is not None)
         row_layout.addWidget(label_value_input, 1)
 
-        numeric_label_checkbox = QCheckBox("Numeric (Zero Padding)", self)
+        numeric_label_checkbox = QCheckBox("zero padding", self)
         row_layout.addWidget(numeric_label_checkbox)
 
         delete_button = QPushButton("X", self)
